@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, User, ShieldCheck, Keyboard, Palette, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, Keyboard, Palette, CheckCircle2, Bell } from 'lucide-react';
+import { NotificationSettings } from './Notifications.jsx';
 import { Avatar, Field, IconButton, Spinner, useToast } from './ui.jsx';
 import { PasswordStrength } from './AuthScreens.jsx';
 import * as api from '../lib/api.js';
@@ -34,9 +35,9 @@ export function ShortcutList() {
   );
 }
 
-export default function Settings({ me, security, onBack, onProfileSaved, theme, setTheme, density, setDensity }) {
+export default function Settings({ me, security, onBack, onProfileSaved, theme, setTheme, density, setDensity, initialTab = 'general' }) {
   const toast = useToast();
-  const [tab, setTab] = useState('general');
+  const [tab, setTab] = useState(initialTab);
   const [name, setName] = useState(me.display_name || '');
   const [signature, setSignature] = useState(me.signature || '');
   const [busy, setBusy] = useState(false);
@@ -82,6 +83,7 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
 
   const tabs = [
     ['general', 'General', User],
+    ['notifications', 'Notifications', Bell],
     ['appearance', 'Appearance', Palette],
     ['security', 'Security', ShieldCheck],
     ['shortcuts', 'Shortcuts', Keyboard],
@@ -179,6 +181,8 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
             </div>
           </>
         )}
+
+        {tab === 'notifications' && <NotificationSettings />}
 
         {tab === 'shortcuts' && <div className="card form-card"><ShortcutList /></div>}
       </div>
