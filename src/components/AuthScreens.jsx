@@ -3,6 +3,7 @@ import { Mail, Lock, ShieldCheck, KeyRound, ArrowLeft, Eye, EyeOff, CheckCircle2
 import { auth } from '../lib/api.js';
 import { DOMAIN } from '../lib/utils.js';
 import { Spinner } from './ui.jsx';
+import { InstallButton } from './InstallApp.jsx';
 
 function AuthLayout({ children }) {
   return (
@@ -140,6 +141,7 @@ export function LoginScreen() {
         {forgot && (
           <p className="fine">No recovery email set up? Ask your DAPP Mail admin to reset your password.</p>
         )}
+        <div className="install-row"><InstallButton variant="link" /></div>
       </form>
     </AuthLayout>
   );

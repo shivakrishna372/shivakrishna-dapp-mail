@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { Menu, Search, X, Settings, HelpCircle, LogOut, Mail, Moon, Sun } from 'lucide-react';
 import { Avatar, IconButton, Popover, MenuItem } from './ui.jsx';
+import { InstallButton } from './InstallApp.jsx';
 import { displayName } from '../lib/utils.js';
 
 const TopBar = forwardRef(function TopBar(
@@ -38,6 +39,7 @@ const TopBar = forwardRef(function TopBar(
       </form>
 
       <div className="topbar-right">
+        <InstallButton />
         <IconButton icon={dark ? Sun : Moon} label={dark ? 'Light mode' : 'Dark mode'} onClick={onToggleTheme} className="hide-sm" />
         <IconButton icon={HelpCircle} label="Keyboard shortcuts (?)" onClick={onShortcuts} className="hide-sm" />
         <IconButton icon={Settings} label="Settings" onClick={onSettings} className="hide-sm" />
