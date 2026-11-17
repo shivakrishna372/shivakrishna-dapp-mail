@@ -8,6 +8,8 @@ import Composer from './components/Composer.jsx';
 import Settings, { ShortcutList } from './components/Settings.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import { Modal, Spinner, useToast } from './components/ui.jsx';
+import { NotificationBanner } from './components/Notifications.jsx';
+import { syncPush, forgetDevice, setBadge } from './lib/push.js';
 import * as api from './lib/api.js';
 import { groupConversations } from './lib/conversations.js';
 import { sanitize, textToHtml, displayName, escapeHtml, friendlyFuture } from './lib/utils.js';
@@ -69,7 +71,30 @@ export default function MailApp({ user, security, theme, setTheme }) {
     loadCounts();
   }, [user.id, toast, loadCounts]);
 
-  useEffect(() => { loadPeople(); loadLabels(); }, [loadPeople, loadLabels]);
+  useEffect(() => { loadPeople(); loadLabels(); syncPush(); }, [loadPeople, loadLabels]);
+
+  // Opened from a notification: /?thread=<id>, or a message from the service worker.
+  useEffect(() => {
+    const openThread = (threadId) => {
+      if (!threadId || !/^[0-9a-f-]{36}$/i.test(threadId)) return;
+      setViewState({ type: 'inbox' });
+      setSelected(new Set());
+      setOpen({ threadId, key: `t:${threadId}` });
+    };
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('thread')) {
+      openThread(params.get('thread'));
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    const onMessage = (e) => {
+      if (e.data?.type === 'open-thread') openThread(e.data.threadId);
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
+  }, []);
+
+  // App icon badge (installed app) = unread count.
+  useEffect(() => { setBadge(counts.inbox); }, [counts.inbox]);
   useEffect(() => { setRows([]); reload(); }, [view, reload]);
 
   // Live updates: new mail appears without refreshing.
@@ -351,7 +376,7 @@ export default function MailApp({ user, security, theme, setTheme }) {
         searchValue={view.type === 'search' ? view.q : ''}
         onSettings={() => setView({ type: 'settings' })}
         onShortcuts={() => setShowKeys(true)}
-        onSignOut={() => api.auth.signOut()}
+        onSignOut={async () => { await forgetDevice(); api.auth.signOut(); }}
         theme={theme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme}
         onToggleTheme={() => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')}
         onHome={() => setView({ type: 'inbox' })}
@@ -385,6 +410,8 @@ export default function MailApp({ user, security, theme, setTheme }) {
             <AdminPanel me={me} onBack={() => setView({ type: 'inbox' })} onUsersChanged={loadPeople} />
           ) : (
             <>
+              <div className="list-col">
+              {view.type === 'inbox' && <NotificationBanner />}
               <MailList
                 view={view}
                 title={title}
@@ -399,6 +426,7 @@ export default function MailApp({ user, security, theme, setTheme }) {
                 actions={listActions}
                 activeKey={open?.key}
               />
+              </div>
               {open && (
                 <ThreadView
                   key={open.threadId}

@@ -1,0 +1,17 @@
+/* ---------- notifications ---------- */
+.list-col { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.main.has-open .list-col { flex: 0 0 min(440px, 38%); }
+.list-col .list-pane { flex: 1; min-height: 0; }
+.main.has-open .list-col .list-pane { flex: 1; }
+.notif-banner { display: flex; align-items: center; gap: 12px; margin: 10px 12px 2px; padding: 10px 10px 10px 14px; border-radius: 12px; background: var(--accent-soft); color: var(--text); flex: none; }
+.notif-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--accent); color: #fff; flex: none; }
+.notif-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.notif-text b { font-size: 14px; }
+.notif-text span { font-size: 12.5px; color: var(--muted); }
+.notif-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px; border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 16px; }
+.notif-status span { flex-basis: 100%; font-size: 13px; }
+.bad { color: var(--danger); }
+
+@media (max-width: 1280px) {
+  .main.has-open .list-col { display: none; }
+}
