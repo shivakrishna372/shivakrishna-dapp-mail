@@ -1,0 +1,134 @@
+/* DAPP Mail - Global Styles */
+
+:root {
+  font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+  color: #27293b;
+  background: #f6f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  font-optical-sizing: auto;
+  color-scheme: light;
+
+  --primary: #6557d5;
+  --primary-hover: #5547c4;
+  --text: #27293b;
+  --muted: #85879b;
+  --border: #ececf4;
+  --background: #f6f7fb;
+  --surface: #ffffff;
+  --danger: #a73542;
+  --success: #26764a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin-top: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+input,
+textarea,
+select {
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #999bad;
+  opacity: 1;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(101, 87, 213, 0.22);
+  outline-offset: 2px;
+}
+
+img {
+  max-width: 100%;
+}
+
+::selection {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+/* Scrollbars */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d7d8e3;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b9c9;
+}
+
+/* Responsive defaults */
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  #root {
+    width: 100%;
+  }
+}
