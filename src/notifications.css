@@ -15,3 +15,15 @@
 @media (max-width: 1280px) {
   .main.has-open .list-col { display: none; }
 }
+
+/* ---------- install app ---------- */
+.install-btn { margin-right: 6px; border-color: var(--accent); color: var(--accent-text); }
+.install-row { display: flex; justify-content: center; margin-top: 18px; }
+.install-link { font-size: 14px; }
+.ios-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+.ios-steps li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; }
+.ios-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); flex: none; }
+@media (max-width: 860px) {
+  .install-btn { padding: 0 10px; margin-right: 2px; }
+  .install-btn span { display: none; }
+}
