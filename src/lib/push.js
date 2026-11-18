@@ -80,9 +80,14 @@ export async function syncPush() {
   } catch { /* ignore */ }
 }
 
-// Before signing out: stop sending this person's mail notifications to this device.
+// Before signing out: stop sending this person's mail notifications to this device,
+// but keep the device's permission so the next sign-in reconnects automatically (syncPush).
 export async function forgetDevice() {
-  try { await disablePush(); } catch { /* ignore */ }
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const sub = reg && (await reg.pushManager.getSubscription());
+    if (sub) await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+  } catch { /* ignore */ }
 }
 
 export async function showTestNotification() {
