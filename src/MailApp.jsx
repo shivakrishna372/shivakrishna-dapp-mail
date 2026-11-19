@@ -14,7 +14,7 @@ import * as api from './lib/api.js';
 import { groupConversations } from './lib/conversations.js';
 import { sanitize, textToHtml, displayName, escapeHtml, friendlyFuture } from './lib/utils.js';
 
-const UNDO_MS = 5000;
+const UNDO_CHOICES = [0, 3, 5, 10]; // seconds; 0 = send instantly
 
 function readPref(key, fallback) {
   try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
@@ -39,6 +39,10 @@ export default function MailApp({ user, security, theme, setTheme }) {
   const [mobileNav, setMobileNav] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [density, setDensityState] = useState(readPref('dapp-density', 'comfortable'));
+  const [undoSecs, setUndoSecsState] = useState(() => {
+    const n = Number(readPref('dapp-undo-secs', '3'));
+    return UNDO_CHOICES.includes(n) ? n : 3;
+  });
   const searchRef = useRef(null);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -48,6 +52,7 @@ export default function MailApp({ user, security, theme, setTheme }) {
   const me = peopleById[user.id] || { id: user.id, email: user.email, display_name: user.email.split('@')[0] };
 
   const setDensity = (d) => { setDensityState(d); writePref('dapp-density', d); };
+  const setUndoSecs = (n) => { setUndoSecsState(n); writePref('dapp-undo-secs', String(n)); };
   const setView = useCallback((v) => {
     setViewState(v); setOpen(null); setSelected(new Set());
   }, []);
@@ -245,25 +250,31 @@ export default function MailApp({ user, security, theme, setTheme }) {
     });
   };
 
+  const deliver = async (draftId, reopen) => {
+    try {
+      await api.sendMessage(draftId);
+      toast('Message sent');
+      reload(true);
+      setRefreshToken((x) => x + 1);
+    } catch (e) {
+      toast(`Not sent: ${e.message}`, { error: true });
+      openComposer(reopen);
+    }
+  };
+
   const sendWithUndo = (draftId, reopen) => {
+    const ms = undoSecs * 1000;
+    if (!ms) { deliver(draftId, reopen); return; }
     let cancelled = false;
     const toastId = toast('Sending…', {
-      duration: UNDO_MS,
+      duration: ms,
       action: { label: 'Undo', onClick: () => { cancelled = true; openComposer(reopen); toast('Sending cancelled — draft reopened'); } },
     });
-    setTimeout(async () => {
+    setTimeout(() => {
       if (cancelled) return;
       toast.dismiss?.(toastId);
-      try {
-        await api.sendMessage(draftId);
-        toast('Message sent');
-        reload(true);
-        setRefreshToken((x) => x + 1);
-      } catch (e) {
-        toast(`Not sent: ${e.message}`, { error: true });
-        openComposer(reopen);
-      }
-    }, UNDO_MS);
+      deliver(draftId, reopen);
+    }, ms);
   };
 
   const schedule = async (draftId, when, reopen) => {
@@ -405,6 +416,9 @@ export default function MailApp({ user, security, theme, setTheme }) {
               setTheme={setTheme}
               density={density}
               setDensity={setDensity}
+              undoSecs={undoSecs}
+              setUndoSecs={setUndoSecs}
+              undoChoices={UNDO_CHOICES}
             />
           ) : view.type === 'admin' && me.is_admin ? (
             <AdminPanel me={me} onBack={() => setView({ type: 'inbox' })} onUsersChanged={loadPeople} />
@@ -458,6 +472,7 @@ export default function MailApp({ user, security, theme, setTheme }) {
             onClose={() => closeComposer(c.id)}
             onSend={sendWithUndo}
             onSchedule={schedule}
+            onReopen={openComposer}
             onChanged={changed}
           />
         ))}
