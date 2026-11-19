@@ -35,7 +35,7 @@ export function ShortcutList() {
   );
 }
 
-export default function Settings({ me, security, onBack, onProfileSaved, theme, setTheme, density, setDensity, initialTab = 'general' }) {
+export default function Settings({ me, security, onBack, onProfileSaved, theme, setTheme, density, setDensity, undoSecs = 3, setUndoSecs, undoChoices = [0, 3, 5, 10], initialTab = 'general' }) {
   const toast = useToast();
   const [tab, setTab] = useState(initialTab);
   const [name, setName] = useState(me.display_name || '');
@@ -105,6 +105,7 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
         </div>
 
         {tab === 'general' && (
+          <>
           <form className="card form-card" onSubmit={saveProfile}>
             <div className="profile-head">
               <Avatar person={{ ...me, display_name: name }} size={64} />
@@ -118,6 +119,17 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
             </Field>
             <div className="row-end"><button className="btn primary" disabled={busy}>{busy ? <Spinner /> : 'Save changes'}</button></div>
           </form>
+          <div className="card form-card">
+            <div className="field"><span>Undo send</span>
+              <div className="seg">
+                {undoChoices.map((n) => (
+                  <button key={n} type="button" className={undoSecs === n ? 'on' : ''} onClick={() => setUndoSecs?.(n)}>{n ? `${n} sec` : 'Off'}</button>
+                ))}
+              </div>
+              <small className="muted">How long you get to press “Undo” after sending. Off sends instantly.</small>
+            </div>
+          </div>
+          </>
         )}
 
         {tab === 'appearance' && (

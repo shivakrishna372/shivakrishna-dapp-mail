@@ -139,7 +139,7 @@ function FormatBar({ editorRef, onChange }) {
 }
 
 // ---------------- Compose window ----------------
-export default function Composer({ initial, me, people, onClose, onSend, onSchedule, onChanged }) {
+export default function Composer({ initial, me, people, onClose, onSend, onSchedule, onChanged, onReopen }) {
   const toast = useToast();
   const [to, setTo] = useState(initial.to || []);
   const [cc, setCc] = useState(initial.cc || []);
@@ -286,10 +286,11 @@ export default function Composer({ initial, me, people, onClose, onSend, onSched
     if (!validate()) return;
     closed.current = true;
     lastRecipients.current = null; // always re-save To/Cc/Bcc right before sending
+    const snapshot = { ...initial, to, cc, bcc, subject, html: sanitize(html), attachments, forwardAttachments: null };
+    onClose(); // close instantly; saving continues in the background
     const id = await save();
-    if (!id) { closed.current = false; return; }
-    const reopen = { ...initial, draftId: id, to, cc, bcc, subject, html: sanitize(html), attachments, forwardAttachments: null };
-    onClose();
+    if (!id) { onReopen?.(snapshot); return; }
+    const reopen = { ...snapshot, draftId: id };
     if (when) onSchedule(id, when, reopen);
     else onSend(id, reopen);
   };
