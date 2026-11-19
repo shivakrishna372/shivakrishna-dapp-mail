@@ -1,6 +1,7 @@
 // All communication with Supabase lives here.
 import { supabase } from '../supabase.js';
 import { safeFileName } from './utils.js';
+import { compressImage } from './compress.js';
 
 const BUCKET = 'attachments';
 const PAGE = 400;
@@ -224,9 +225,9 @@ export async function setRecipients(messageId, { to, cc, bcc }) {
 }
 
 export async function discardDraft(messageId, attachments = []) {
-  if (attachments.length) {
-    await supabase.storage.from(BUCKET).remove(attachments.map((a) => a.file_path));
-  }
+  // Only remove files uploaded into this draft; forwarded files belong to the original mail.
+  const own = attachments.filter((a) => a.file_path.startsWith(`${messageId}/`)).map((a) => a.file_path);
+  if (own.length) await supabase.storage.from(BUCKET).remove(own);
   check(await supabase.from('messages').delete().eq('id', messageId));
 }
 
@@ -241,7 +242,8 @@ export async function cancelScheduled(messageId) {
 // ---------------- Attachments ----------------
 export const MAX_FILE = 25 * 1024 * 1024;
 
-export async function uploadAttachment(messageId, file) {
+export async function uploadAttachment(messageId, original) {
+  const file = await compressImage(original);
   if (file.size > MAX_FILE) throw new Error(`${file.name} is larger than 25 MB`);
   const path = `${messageId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const up = await supabase.storage.from(BUCKET).upload(path, file, {
@@ -258,21 +260,21 @@ export async function uploadAttachment(messageId, file) {
   );
 }
 
+// Forwarding: point to the same stored file instead of copying it (saves space).
 export async function copyAttachment(messageId, att) {
-  const path = `${messageId}/${crypto.randomUUID()}-${safeFileName(att.file_name)}`;
-  const cp = await supabase.storage.from(BUCKET).copy(att.file_path, path);
-  if (cp.error) throw new Error(cp.error.message);
   return check(
     await supabase
       .from('attachments')
-      .insert({ message_id: messageId, file_path: path, file_name: att.file_name, mime_type: att.mime_type, size_bytes: att.size_bytes })
+      .insert({ message_id: messageId, file_path: att.file_path, file_name: att.file_name, mime_type: att.mime_type, size_bytes: att.size_bytes })
       .select('id,file_name,file_path,size_bytes,mime_type')
       .single()
   );
 }
 
-export async function removeAttachment(att) {
-  await supabase.storage.from(BUCKET).remove([att.file_path]);
+export async function removeAttachment(att, draftId) {
+  if (draftId && att.file_path.startsWith(`${draftId}/`)) {
+    await supabase.storage.from(BUCKET).remove([att.file_path]);
+  }
   check(await supabase.from('attachments').delete().eq('id', att.id));
 }
 
@@ -286,6 +288,7 @@ export async function attachmentUrl(att, download = true) {
 
 // ---------------- Admin ----------------
 export const adminApi = (action, body = {}) => callFunction('admin-users', { action, ...body });
+export const exportBackup = () => callFunction('export-backup', {});
 
 // ---------------- Live updates ----------------
 export function subscribeMailbox(userId, onChange) {
