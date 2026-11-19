@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, UserPlus, MoreVertical, KeyRound, ShieldCheck, ShieldOff, Ban, CheckCircle2, Pencil, Copy, RefreshCw } from 'lucide-react';
+import { ArrowLeft, UserPlus, MoreVertical, KeyRound, ShieldCheck, ShieldOff, Ban, CheckCircle2, Pencil, Copy, RefreshCw, DatabaseBackup } from 'lucide-react';
 import { Avatar, Field, IconButton, Modal, Popover, MenuItem, Spinner, useToast } from './ui.jsx';
-import { adminApi } from '../lib/api.js';
+import { adminApi, exportBackup } from '../lib/api.js';
 import { DOMAIN, displayName, randomPassword, shortDate } from '../lib/utils.js';
 
 function CredentialCard({ email, password }) {
@@ -66,6 +66,27 @@ export default function AdminPanel({ me, onBack, onUsersChanged }) {
     }
   };
 
+  const [backingUp, setBackingUp] = useState(false);
+  const downloadBackup = async () => {
+    setBackingUp(true);
+    try {
+      const data = await exportBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dapp-mail-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('Backup downloaded — keep the file somewhere safe');
+    } catch (e) {
+      toast(e.message, { error: true });
+    }
+    setBackingUp(false);
+  };
+
   const status = (u) => (u.disabled ? ['Disabled', 'bad'] : u.setup_complete ? ['Active', 'good'] : ['Setup pending', 'warn']);
 
   return (
@@ -121,6 +142,21 @@ export default function AdminPanel({ me, onBack, onUsersChanged }) {
           </div>
         )}
         <p className="fine pad">Disabled users can’t sign in, but their mail is kept. New users must add a recovery email and choose their own password on first sign-in.</p>
+
+        <div className="card form-card backup-card">
+          <div className="backup-head">
+            <span className="backup-icon"><DatabaseBackup size={20} /></span>
+            <div>
+              <h3>Backup</h3>
+              <p className="muted">Download all mail, users and labels as one file. Do this once a month and keep the file safe — it contains everyone’s mail. Attachment files are not included (only their names).</p>
+            </div>
+          </div>
+          <div className="row-end">
+            <button className="btn primary" onClick={downloadBackup} disabled={backingUp}>
+              {backingUp ? <Spinner /> : <><DatabaseBackup size={16} /> Download backup</>}
+            </button>
+          </div>
+        </div>
       </div>
 
       {dialog && (
