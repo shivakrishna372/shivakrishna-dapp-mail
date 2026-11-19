@@ -158,7 +158,11 @@ export default function Composer({ initial, me, people, onClose, onSend, onSched
 
   const draftId = useRef(initial.draftId || null);
   const chain = useRef(Promise.resolve());
-  const lastRecipients = useRef(JSON.stringify([initial.to || [], initial.cc || [], initial.bcc || []]));
+  // For an existing draft, its recipients are already saved. For a new message (incl. Reply /
+  // Reply all, which pre-fill To/Cc) nothing is saved yet, so the first save must write them.
+  const lastRecipients = useRef(
+    initial.draftId ? JSON.stringify([initial.to || [], initial.cc || [], initial.bcc || []]) : JSON.stringify([[], [], []])
+  );
   const dirty = useRef(false);
   const closed = useRef(false);
   const editorRef = useRef(null);
@@ -246,7 +250,7 @@ export default function Composer({ initial, me, people, onClose, onSend, onSched
   };
 
   const removeAtt = async (a) => {
-    try { await api.removeAttachment(a); setAttachments((x) => x.filter((y) => y.id !== a.id)); }
+    try { await api.removeAttachment(a, draftId.current); setAttachments((x) => x.filter((y) => y.id !== a.id)); }
     catch (e) { toast(e.message, { error: true }); }
   };
 
@@ -281,6 +285,7 @@ export default function Composer({ initial, me, people, onClose, onSend, onSched
   const send = async (when) => {
     if (!validate()) return;
     closed.current = true;
+    lastRecipients.current = null; // always re-save To/Cc/Bcc right before sending
     const id = await save();
     if (!id) { closed.current = false; return; }
     const reopen = { ...initial, draftId: id, to, cc, bcc, subject, html: sanitize(html), attachments, forwardAttachments: null };
