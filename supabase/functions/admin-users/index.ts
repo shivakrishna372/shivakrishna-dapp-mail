@@ -2,7 +2,7 @@
 // Actions: list, create, reset_password, set_disabled, set_admin, rename
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const DOMAIN = "dapp.com";
+const DOMAIN = "otsi.com"; // addresses were @dapp.com until 20 Nov 2026
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
