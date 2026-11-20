@@ -1,6 +1,6 @@
 // All communication with Supabase lives here.
 import { supabase } from '../supabase.js';
-import { safeFileName } from './utils.js';
+import { safeFileName, DOMAIN, OLD_DOMAIN } from './utils.js';
 import { compressImage } from './compress.js';
 
 const BUCKET = 'attachments';
@@ -28,10 +28,15 @@ async function callFunction(name, body) {
 
 // ---------------- Auth & account security ----------------
 export const auth = {
-  signIn: (email, password) =>
-    supabase.auth.signInWithPassword({ email, password }).then(({ error }) => {
-      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong email or password' : error.message);
-    }),
+  async signIn(email, password) {
+    let { error } = await supabase.auth.signInWithPassword({ email, password });
+    // Transition from @dapp.com to @otsi.com: accounts not yet renamed still sign in with the old address.
+    if (error?.message === 'Invalid login credentials' && email.endsWith(`@${DOMAIN}`)) {
+      const old = `${email.slice(0, -DOMAIN.length)}${OLD_DOMAIN}`;
+      ({ error } = await supabase.auth.signInWithPassword({ email: old, password }));
+    }
+    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong email or password' : error.message);
+  },
   signOut: () => supabase.auth.signOut(),
   requestReset: (email) => callFunction('recovery-email', { action: 'request-reset', email }),
   setNewPassword: (password) =>

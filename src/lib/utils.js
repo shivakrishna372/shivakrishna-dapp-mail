@@ -1,6 +1,16 @@
 import DOMPurify from 'dompurify';
 
-export const DOMAIN = 'dapp.com';
+export const DOMAIN = 'otsi.com';
+// Addresses used to be name@dapp.com. Old addresses typed anywhere are treated as the new ones.
+export const OLD_DOMAIN = 'dapp.com';
+
+// "ravi", "Ravi@Otsi.com" or "ravi@dapp.com" -> "ravi@otsi.com"
+export function normalizeAddress(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (!v) return v;
+  if (!v.includes('@')) return `${v}@${DOMAIN}`;
+  return v.endsWith(`@${OLD_DOMAIN}`) ? `${v.slice(0, -OLD_DOMAIN.length)}${DOMAIN}` : v;
+}
 
 // ---- HTML safety -------------------------------------------------------
 const PURIFY_CONFIG = {
