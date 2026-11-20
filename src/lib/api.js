@@ -41,11 +41,12 @@ export const auth = {
   requestReset: (email) => callFunction('recovery-email', { action: 'request-reset', email }),
   setNewPassword: (password) =>
     supabase.auth.updateUser({ password }).then(({ error }) => { if (error) throw new Error(error.message); }),
-  async verifyCurrentPassword(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('Current password is incorrect');
-  },
-  sendRecoveryCode: (recovery_email) => callFunction('recovery-email', { action: 'send', recovery_email }),
+  // Checked on the server: the current password must be right.
+  changePassword: (current_password, new_password) =>
+    callFunction('recovery-email', { action: 'change-password', current_password, new_password }),
+  // current_password is required once setup is finished (changing the recovery email later).
+  sendRecoveryCode: (recovery_email, current_password) =>
+    callFunction('recovery-email', { action: 'send', recovery_email, current_password }),
   verifyRecoveryCode: (code) => callFunction('recovery-email', { action: 'verify', code }),
   activate: (new_password) => callFunction('recovery-email', { action: 'activate', new_password }),
 };
