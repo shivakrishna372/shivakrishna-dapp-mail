@@ -3,7 +3,9 @@
 //   send           (logged in)  send a 6-digit code to a recovery email
 //   verify         (logged in)  confirm the code
 //   activate       (logged in)  set personal password + finish first-login setup
+//   change-password (logged in) change password; the current password is checked here
 //   request-reset  (logged out) email a password-reset link to the VERIFIED recovery email
+//   notify-password-changed (database trigger, shared secret) alert the recovery email
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@^6.9.16";
 
@@ -57,6 +59,30 @@ function emailShell(title: string, inner: string) {
 
 function validPassword(p: unknown): p is string {
   return typeof p === "string" && p.length >= 8 && p.length <= 72;
+}
+
+// True if this email + password signs in. Uses a throwaway session that is signed out right away.
+async function passwordMatches(email: string, password: string) {
+  const c = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await c.auth.signInWithPassword({ email, password });
+  if (error || !data?.session) return false;
+  await c.auth.signOut({ scope: "local" }).catch(() => {});
+  return true;
+}
+
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function sendNotice(to: string, subject: string, title: string, html: string, text: string) {
+  try {
+    await transporter.sendMail({ from: Deno.env.get("SMTP_FROM"), to, subject, text, html: emailShell(title, html) });
+  } catch (e) {
+    console.error("notice email failed:", e instanceof Error ? e.message : e);
+  }
 }
 
 const GENERIC_RESET =
@@ -122,6 +148,29 @@ Deno.serve(async (req) => {
       return json({ success: true, message: GENERIC_RESET });
     }
 
+    // ---------------- DATABASE TRIGGER: password was changed ----------------
+    if (action === "notify-password-changed") {
+      const { data: cfg } = await admin.rpc("get_push_config");
+      if (!sameSecret(req.headers.get("x-hook-secret") || "", cfg?.hook_secret || "")) return json({ error: "Forbidden" }, 403);
+      const uid = String(body.user_id || "");
+      const [{ data: s }, { data: p }] = await Promise.all([
+        admin.from("user_security").select("recovery_email, recovery_email_verified").eq("user_id", uid).maybeSingle(),
+        admin.from("profiles").select("email").eq("id", uid).maybeSingle(),
+      ]);
+      if (s?.recovery_email_verified && s.recovery_email && p?.email) {
+        const when = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+        await sendNotice(
+          s.recovery_email,
+          "DAPP Mail - Your password was changed",
+          "Your password was changed",
+          `<p style="color:#374151">The password for <b>${escapeHtml(p.email)}</b> was changed on ${escapeHtml(when)} (IST).</p>
+           <p style="color:#374151">If this wasn't you, tell your DAPP Mail admin straight away so they can reset it.</p>`,
+          `The password for ${p.email} was changed on ${when} (IST). If this wasn't you, tell your DAPP Mail admin straight away.`,
+        );
+      }
+      return json({ success: true });
+    }
+
     // ---------------- LOGGED-IN actions ----------------
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "Please sign in again" }, 401);
@@ -133,12 +182,10 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await userClient.auth.getUser();
     if (authError || !authData.user) return json({ error: "Please sign in again" }, 401);
     const userId = authData.user.id;
+    const userEmail = authData.user.email || "";
 
     if (action === "activate") {
-      // TEMPORARY: the old app sets the password itself and sends no new_password.
-      // Remove this fallback once everyone is on the new app.
-      const legacy = body.new_password === undefined;
-      if (!legacy && !validPassword(body.new_password)) {
+      if (!validPassword(body.new_password)) {
         return json({ error: "Password must be 8–72 characters" }, 400);
       }
       const { data: security, error: checkError } = await admin
@@ -147,18 +194,29 @@ Deno.serve(async (req) => {
       if (!security?.recovery_email_verified) {
         return json({ error: "Verify your recovery email first" }, 403);
       }
-      if (!legacy) {
-        const { error: pwError } = await admin.auth.admin.updateUserById(userId, {
-          password: body.new_password as string,
-        });
-        if (pwError) return json({ error: pwError.message }, 400);
+      if (await passwordMatches(userEmail, body.new_password)) {
+        return json({ error: "Choose a new password — not the temporary one from your admin" }, 400);
       }
+      const { error: pwError } = await admin.auth.admin.updateUserById(userId, { password: body.new_password });
+      if (pwError) return json({ error: pwError.message }, 400);
 
       const { error: activateError } = await admin
         .from("user_security")
         .update({ first_login_completed: true, updated_at: new Date().toISOString() })
         .eq("user_id", userId);
       if (activateError) throw activateError;
+      return json({ success: true });
+    }
+
+    if (action === "change-password") {
+      if (!validPassword(body.new_password)) return json({ error: "Password must be 8–72 characters" }, 400);
+      const current = typeof body.current_password === "string" ? body.current_password : "";
+      if (!current || !(await passwordMatches(userEmail, current))) {
+        return json({ error: "Current password is incorrect" }, 403);
+      }
+      if (body.new_password === current) return json({ error: "Choose a password different from your current one" }, 400);
+      const { error: pwError } = await admin.auth.admin.updateUserById(userId, { password: body.new_password });
+      if (pwError) return json({ error: pwError.message }, 400);
       return json({ success: true });
     }
 
@@ -169,6 +227,14 @@ Deno.serve(async (req) => {
       }
       if (email.endsWith("@" + DOMAIN) || email.endsWith("@" + OLD_DOMAIN)) {
         return json({ error: `Use a personal email (like Gmail), not a @${DOMAIN} address` }, 400);
+      }
+      // After setup, changing the recovery email needs the current password (stops a stolen session taking over).
+      const { data: mySec } = await admin.from("user_security").select("first_login_completed").eq("user_id", userId).maybeSingle();
+      if (mySec?.first_login_completed) {
+        const current = typeof body.current_password === "string" ? body.current_password : "";
+        if (!current || !(await passwordMatches(userEmail, current))) {
+          return json({ error: "Your DAPP Mail password is incorrect" }, 403);
+        }
       }
       const { data: existing, error: lookupError } = await admin
         .from("recovery_email_otps").select("created_at").eq("user_id", userId).maybeSingle();
@@ -233,6 +299,8 @@ Deno.serve(async (req) => {
         return json({ error: "Incorrect code" }, 400);
       }
 
+      const { data: before } = await admin
+        .from("user_security").select("recovery_email, recovery_email_verified").eq("user_id", userId).maybeSingle();
       const { error: updateError } = await admin.from("user_security").upsert({
         user_id: userId,
         recovery_email: record.recovery_email,
@@ -241,6 +309,16 @@ Deno.serve(async (req) => {
       });
       if (updateError) throw updateError;
       await admin.from("recovery_email_otps").delete().eq("user_id", userId);
+      if (before?.recovery_email_verified && before.recovery_email && before.recovery_email !== record.recovery_email) {
+        await sendNotice(
+          before.recovery_email,
+          "DAPP Mail - Your recovery email was changed",
+          "Your recovery email was changed",
+          `<p style="color:#374151">The recovery email for <b>${escapeHtml(userEmail)}</b> was changed to <b>${escapeHtml(record.recovery_email)}</b>.</p>
+           <p style="color:#374151">If this wasn't you, tell your DAPP Mail admin straight away.</p>`,
+          `The recovery email for ${userEmail} was changed to ${record.recovery_email}. If this wasn't you, tell your DAPP Mail admin straight away.`,
+        );
+      }
       return json({ success: true, recovery_email: record.recovery_email });
     }
 
