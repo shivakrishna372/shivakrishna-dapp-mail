@@ -107,6 +107,8 @@ Deno.serve(async (req) => {
           ban_duration: body.disabled ? "876000h" : "none",
         });
         if (error) return json({ error: error.message }, 400);
+        // Disabled: stop notifications to their devices too (mail access is already cut by is_active_user()).
+        if (body.disabled) await admin.from("push_subscriptions").delete().eq("user_id", body.user_id);
         return json({ success: true });
       }
 
