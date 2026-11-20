@@ -1,7 +1,7 @@
 # ✉ DAPP Mail
 
 A private, Gmail-style mail app for a small team, built with **React + Vite** and **Supabase** (free tier).
-Internal only: addresses look like `name@dapp.com` and mail never leaves the app.
+Internal only: addresses look like `name@otsi.com` (they were `name@dapp.com` until 20 Nov 2026; old addresses are still accepted when typed) and mail never leaves the app.
 
 ## Features
 
@@ -26,7 +26,7 @@ screens, dark mode, compact density, keyboard shortcuts (press `?`), works on ph
 - Row Level Security on every table; users who haven’t finished setup can’t read or send anything.
 - Bcc lists are hidden by the database itself, not just the UI.
 - Mail is delivered only through the `send_message` database function, so it can’t be forged.
-- “Forgot password” emails a reset link **only to the verified recovery email** — never to `@dapp.com`.
+- “Forgot password” emails a reset link **only to the verified recovery email** — never to `@otsi.com` addresses.
 - Attachments live in a private bucket and are opened through short-lived signed links.
 - Every message body is sanitised (DOMPurify) before it’s shown.
 
