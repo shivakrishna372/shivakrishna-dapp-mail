@@ -6,7 +6,7 @@ import {
 import { Avatar, IconButton, Popover, useToast } from './ui.jsx';
 import TimePicker from './TimePicker.jsx';
 import * as api from '../lib/api.js';
-import { sanitize, htmlToText, displayName, fileSize, friendlyFuture, DOMAIN } from '../lib/utils.js';
+import { sanitize, htmlToText, displayName, fileSize, friendlyFuture, normalizeAddress } from '../lib/utils.js';
 
 // ---------------- Recipient chips with autocomplete ----------------
 function RecipientField({ label, ids, setIds, people, exclude, autoFocus, extra }) {
@@ -29,7 +29,7 @@ function RecipientField({ label, ids, setIds, people, exclude, autoFocus, extra 
   const commitText = () => {
     const t = text.trim().toLowerCase().replace(/[,;]$/, '');
     if (!t) return;
-    const addr = t.includes('@') ? t : `${t}@${DOMAIN}`;
+    const addr = normalizeAddress(t);
     const match = people.find((p) => p.email === addr || p.username === t);
     if (match && !ids.includes(match.id)) add(match);
     else if (!match) setWarn(`“${t}” isn’t a DAPP Mail user`);
@@ -53,7 +53,7 @@ function RecipientField({ label, ids, setIds, people, exclude, autoFocus, extra 
     const found = [];
     raw.split(/[,;\s]+/).forEach((tok) => {
       const t = tok.trim().toLowerCase();
-      const p = people.find((x) => x.email === t || x.username === t);
+      const p = people.find((x) => x.email === normalizeAddress(t) || x.username === t);
       if (p && !ids.includes(p.id) && !found.includes(p.id)) found.push(p.id);
     });
     setIds([...ids, ...found]);

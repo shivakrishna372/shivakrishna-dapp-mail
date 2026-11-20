@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, ShieldCheck, KeyRound, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../lib/api.js';
-import { DOMAIN } from '../lib/utils.js';
+import { DOMAIN, normalizeAddress } from '../lib/utils.js';
 import { Spinner } from './ui.jsx';
 import { InstallButton } from './InstallApp.jsx';
 
@@ -69,7 +69,7 @@ function AddressInput({ value, onChange, autoFocus }) {
   );
 }
 
-const fullAddress = (v) => (v.includes('@') ? v : `${v}@${DOMAIN}`);
+const fullAddress = normalizeAddress;
 
 export function PasswordStrength({ value }) {
   const score = [/.{8,}/, /[A-Z]/, /[a-z]/, /\d/, /[^\w]/, /.{12,}/].filter((r) => r.test(value)).length;
