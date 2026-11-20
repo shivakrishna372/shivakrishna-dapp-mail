@@ -7,7 +7,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@^6.9.16";
 
-const DOMAIN = "dapp.com";
+const DOMAIN = "otsi.com";
+const OLD_DOMAIN = "dapp.com"; // addresses were @dapp.com until 20 Nov 2026
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,7 +77,8 @@ Deno.serve(async (req) => {
   try {
     // ---------------- LOGGED-OUT: password reset ----------------
     if (action === "request-reset") {
-      const email = String(body.email || "").trim().toLowerCase();
+      let email = String(body.email || "").trim().toLowerCase();
+      if (email.endsWith("@" + OLD_DOMAIN)) email = email.slice(0, -OLD_DOMAIN.length) + DOMAIN;
       if (!email.endsWith("@" + DOMAIN) || email.length > 120) {
         return json({ success: true, message: GENERIC_RESET });
       }
@@ -165,7 +167,7 @@ Deno.serve(async (req) => {
       if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return json({ error: "Enter a valid recovery email" }, 400);
       }
-      if (email.endsWith("@" + DOMAIN)) {
+      if (email.endsWith("@" + DOMAIN) || email.endsWith("@" + OLD_DOMAIN)) {
         return json({ error: `Use a personal email (like Gmail), not a @${DOMAIN} address` }, 400);
       }
       const { data: existing, error: lookupError } = await admin
