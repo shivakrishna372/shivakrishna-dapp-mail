@@ -50,6 +50,7 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
   const [recStep, setRecStep] = useState('view');
   const [recEmail, setRecEmail] = useState('');
   const [code, setCode] = useState('');
+  const [recPassword, setRecPassword] = useState('');
   const [recovery, setRecovery] = useState(security?.recovery_email || '');
 
   useEffect(() => { setName(me.display_name || ''); setSignature(me.signature || ''); }, [me]);
@@ -74,8 +75,8 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
     run(async () => {
       if (next !== confirm) throw new Error('New passwords don’t match');
       if (next.length < 8) throw new Error('Use at least 8 characters');
-      await api.auth.verifyCurrentPassword(me.email, current);
-      await api.auth.setNewPassword(next);
+      if (next === current) throw new Error('Choose a password different from your current one');
+      await api.auth.changePassword(current, next);
       setCurrent(''); setNext(''); setConfirm('');
       toast('Password changed');
     });
@@ -173,8 +174,9 @@ export default function Settings({ me, security, onBack, onProfileSaved, theme, 
                 </div>
               )}
               {recStep === 'email' && (
-                <form onSubmit={(e) => { e.preventDefault(); run(async () => { await api.auth.sendRecoveryCode(recEmail.trim().toLowerCase()); setRecStep('code'); toast('Code sent — check that inbox'); }); }}>
+                <form onSubmit={(e) => { e.preventDefault(); run(async () => { await api.auth.sendRecoveryCode(recEmail.trim().toLowerCase(), recPassword); setRecPassword(''); setRecStep('code'); toast('Code sent — check that inbox'); }); }}>
                   <Field label="New recovery email"><input className="input" type="email" value={recEmail} onChange={(e) => setRecEmail(e.target.value)} required autoFocus placeholder="you@gmail.com" /></Field>
+                  <Field label="Your DAPP Mail password" hint="Needed to change where reset links go."><input className="input" type="password" value={recPassword} onChange={(e) => setRecPassword(e.target.value)} autoComplete="current-password" required /></Field>
                   <div className="row-end">
                     <button type="button" className="btn ghost" onClick={() => setRecStep('view')}>Cancel</button>
                     <button className="btn primary" disabled={busy}>Send code</button>
